@@ -1,3 +1,5 @@
+import numpy as np
+
 def quantCoder(x, s):
     buffer = 0
     d = []
