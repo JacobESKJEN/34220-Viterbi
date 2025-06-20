@@ -22,10 +22,10 @@ def main():
     #kodet_bitstreng = foldningskode.encode("0101110011")
     #print(kodet_bitstreng)
     G_HEIGHT, G_WIDTH = G.shape
+    M = G_WIDTH-1
     print(G_WIDTH, G_HEIGHT)
-    print(intToBin(3, 5))
     # Initiate trellis
-    trellis = [[Node(len(encoded)) for _ in range(2**(G_WIDTH-1))] for _ in range(len(encoded)//G_HEIGHT + 1)]
+    trellis = [[Node(len(encoded)) for _ in range(2**M)] for _ in range(len(encoded)//G_HEIGHT + 1)]
     
 
 if __name__ == "__main__":
