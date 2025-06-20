@@ -13,6 +13,7 @@ class Foldningskode:
         print("n =", self.n, "M =", self.M)
 
         self.T = np.zeros((2, self.n, 2**self.M), dtype=int)
+        self.opretTabelT()
 
     def flip_bits(self, b):
         t = ""
