@@ -11,12 +11,12 @@ def intToBin(intInput, length):
 
 def main():
     # Encoded message (message was: [1 0 0 1 0])
-    #encoded = [1, 1, 1, 1, 0, 1, 0, 0, 0, 0]
-    encoded = [1,1,1,1,1,0,0,0,0,1,0,0,0,1,1,1]
+    encoded = [1, 1, 1, 1, 0, 1, 0, 0, 0, 0]
+    #encoded = [1,1,1,1,1,0,0,0,0,1,0,0,0,1,1,1]
 
     # Initiate generator
-    G = np.array([[1, 0, 1],
-                [ 1, 1, 1]])
+    G = np.array([[1, 1, 0, 1],
+                [1, 1, 1, 1]])
 
     #foldningskode = Foldningskode(["1101", "1111"])
     #kodet_bitstreng = foldningskode.encode("0101110011")
@@ -61,7 +61,7 @@ def main():
             if trellis[column_index+1][node.in1].minError > node.minError + errors1:
                 trellis[column_index+1][node.in1].minError = node.minError + errors1
                 trellis[column_index+1][node.in1].cameFrom = node_index
-                trellis[column_index+1][node.in0].decOut = 1
+                trellis[column_index+1][node.in1].decOut = 1
     
     # Backtrack
     currentNode = trellis[len(trellis)-1][0]
