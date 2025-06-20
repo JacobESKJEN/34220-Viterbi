@@ -11,8 +11,8 @@ def intToBin(intInput, length):
     return result
 
 def main():
-    # Encoded message
-    encoded = [0, 1, 0, 1, 1, 1, 0, 0, 1, 1]
+    # Encoded message (message was: [1 0 0 1 0])
+    encoded = [1, 1, 1, 1, 0, 1, 0, 0, 0, 0]
 
     # Initiate generator
     G = np.array([[1, 1, 0, 1],
