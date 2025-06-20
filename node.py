@@ -8,4 +8,4 @@ class Node:
         self.out1 = np.array([], dtype=int)
         self.minError = minError
         self.decOut = 0
-        self.cameFrom = 0
+        self.cameFrom = -1
