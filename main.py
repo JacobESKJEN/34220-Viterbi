@@ -59,11 +59,14 @@ def main():
     message = [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0]
 
     # Initiate generator
-    G = np.array([[1, 1, 1, 1],
+    """ G = np.array([[1, 1, 1, 1],
                 [1, 0, 1, 1],
-                [1, 1, 1, 0]])
-    
+                [1, 1, 1, 0]])  """
+    G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     encoded = viterbiEncoder(message, G)
+    for i in range(len(encoded)):
+        if np.random.rand() > 0.9: # 10 procent error
+            encoded[i] = (encoded[i]+1)%2
 
     #foldningskode = Foldningskode(["1101", "1111"])
     #kodet_bitstreng = foldningskode.encode("0101110011")
