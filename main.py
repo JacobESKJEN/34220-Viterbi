@@ -111,6 +111,22 @@ def viterbiDecode(trellis, encoded, G):
     output = output[::-1]
     return output
 
+
+
+def addNoise(ratioInDB, array):
+    # INPUTS:
+    # ratioInDB: signal to noise ratio expressed in dB
+    # array:     the signal to add noise to
+    # OUTPUTS:
+    # an array with added noise
+
+    sigma = 1 / (np.sqrt(2)*np.sqrt(10**(ratioInDB/10)))
+    noise = sigma*np.random.randn(len(array))
+
+    array = (array - 0.5) * 2
+
+    return array + noise
+
 def main():
     # Message to encode
     message = [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0]
@@ -121,9 +137,11 @@ def main():
                 [1, 1, 1, 0]])  """
     G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     encoded = viterbiEncoder(message, G)
-    for i in range(len(encoded)):
-        if np.random.rand() > 0.99: # 1 procent error
-            encoded[i] = (encoded[i]+1)%2
+    #for i in range(len(encoded)):
+    #    if np.random.rand() > 0.99: # 1 procent error
+    #        encoded[i] = (encoded[i]+1)%2
+
+    encodedWithNoise = addNoise(3, (encoded - 0.5)*2)
 
     #foldningskode = Foldningskode(["1101", "1111"])
     #kodet_bitstreng = foldningskode.encode("0101110011")
