@@ -54,6 +54,63 @@ def viterbiEncoder(message, G):
     
     return encoded
 
+def viterbiDecode(trellis, encoded, G):
+    G_HEIGHT, G_WIDTH = G.shape
+    M = G_WIDTH - 1
+
+    # Trellis search
+    trellis[0][0].minError = 0
+    for column_index in range(len(trellis)-1):
+        for node_index in range(len(trellis[column_index])):
+            node = trellis[column_index][node_index]
+            if node == 0:
+                continue
+            toDecode = encoded[column_index*G_HEIGHT:(column_index+1)*G_HEIGHT]
+            #if column_index==1 and node_index == 2:
+            #    print("For 0 vej", toDecode, node.out0, (toDecode + node.out0) % 2)
+            #    print("For 1 vej", toDecode, node.out1, (toDecode + node.out1) % 2)
+
+            #print("toDecode:  ", toDecode)
+            #print("node.out0: ", node.out0)
+            
+            errors0 = np.sum((toDecode + node.out0) % 2)
+            errors1 = np.sum((toDecode + node.out1) % 2)
+            
+            if trellis[column_index+1][node.in0].minError > node.minError + errors0:
+                trellis[column_index+1][node.in0].minError = node.minError + errors0
+                trellis[column_index+1][node.in0].cameFrom = node_index
+                trellis[column_index+1][node.in0].decOut = 0
+
+            if trellis[column_index+1][node.in1].minError > node.minError + errors1:
+                trellis[column_index+1][node.in1].minError = node.minError + errors1
+                trellis[column_index+1][node.in1].cameFrom = node_index
+                trellis[column_index+1][node.in1].decOut = 1
+    
+    """trellis_distances = np.zeros((len(trellis),len(trellis[0])))
+    for column_index in range(len(trellis)):
+        for node_index in range(len(trellis[column_index])):
+            trellis_distances[column_index, node_index] = trellis[column_index][node_index].minError
+
+    print(trellis_distances.T)"""
+
+    # Backtrack
+    currentNode = trellis[len(trellis)-1][0]
+    for node in trellis[len(trellis)-1][:]:
+        if node.minError < currentNode.minError:
+            currentNode = node
+    
+    output = []
+    layer = len(trellis)-1
+    while currentNode.cameFrom != -1:
+        #print(layer, trellis[layer].index(currentNode))
+        #print(currentNode.cameFrom)
+        output.append(currentNode.decOut)
+        layer -= 1
+        currentNode = trellis[layer][currentNode.cameFrom]
+    #print(layer, trellis[layer].index(currentNode))
+    output = output[::-1]
+    return output
+
 def main():
     # Message to encode
     message = [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0]
@@ -65,7 +122,7 @@ def main():
     G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     encoded = viterbiEncoder(message, G)
     for i in range(len(encoded)):
-        if np.random.rand() > 0.9: # 10 procent error
+        if np.random.rand() > 0.99: # 1 procent error
             encoded[i] = (encoded[i]+1)%2
 
     #foldningskode = Foldningskode(["1101", "1111"])
@@ -96,65 +153,15 @@ def main():
             node.out1 = output1
             node.in0 = node_index>>1 #(node_index<<1) & ((2**M)-1) 
             node.in1 = (2**M+node_index)>>1#((node_index<<1)+1) & ((2**M)-1) #
-    
-    # Trellis search
-    trellis[0][0].minError = 0
-    for column_index in range(len(trellis)-1):
-        for node_index in range(len(trellis[column_index])):
-            node = trellis[column_index][node_index]
-            if node == 0:
-                continue
-            toDecode = encoded[column_index*G_HEIGHT:(column_index+1)*G_HEIGHT]
-            #if column_index==1 and node_index == 2:
-            #    print("For 0 vej", toDecode, node.out0, (toDecode + node.out0) % 2)
-            #    print("For 1 vej", toDecode, node.out1, (toDecode + node.out1) % 2)
 
-            #print("toDecode:  ", toDecode)
-            #print("node.out0: ", node.out0)
-            
-            errors0 = np.sum((toDecode + node.out0) % 2)
-            errors1 = np.sum((toDecode + node.out1) % 2)
-            
-            if trellis[column_index+1][node.in0].minError > node.minError + errors0:
-                trellis[column_index+1][node.in0].minError = node.minError + errors0
-                trellis[column_index+1][node.in0].cameFrom = node_index
-                trellis[column_index+1][node.in0].decOut = 0
-
-            if trellis[column_index+1][node.in1].minError > node.minError + errors1:
-                trellis[column_index+1][node.in1].minError = node.minError + errors1
-                trellis[column_index+1][node.in1].cameFrom = node_index
-                trellis[column_index+1][node.in1].decOut = 1
-    
-    trellis_distances = np.zeros((len(trellis),len(trellis[0])))
-    for column_index in range(len(trellis)):
-        for node_index in range(len(trellis[column_index])):
-            trellis_distances[column_index, node_index] = trellis[column_index][node_index].minError
-
-    print(trellis_distances.T)
-
-    # Backtrack
-    currentNode = trellis[len(trellis)-1][0]
-    for node in trellis[len(trellis)-1][:]:
-        if node.minError < currentNode.minError:
-            currentNode = node
-    
-    output = []
-    layer = len(trellis)-1
-    while currentNode.cameFrom != -1:
-        #print(layer, trellis[layer].index(currentNode))
-        #print(currentNode.cameFrom)
-        output.append(currentNode.decOut)
-        layer -= 1
-        currentNode = trellis[layer][currentNode.cameFrom]
-    #print(layer, trellis[layer].index(currentNode))
-    output = output[::-1]
+    decodedUsingMethod = viterbiDecode(trellis, encoded, G)    
 
     ## Viterbi decoder from channelcoding:
     trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
     decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='hard')
 
     print(f'Message: ------------------- {np.array(message, dtype=int)}')
-    print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
+    print(f'Decoded using our decoder: - {np.array(decodedUsingMethod, dtype=int)}')
     print(f'Decoded using channelcoding: {decodedUsingPackage}')
 
 
