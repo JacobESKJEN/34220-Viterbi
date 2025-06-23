@@ -117,19 +117,26 @@ def main():
     #            [1, 1, 1, 0]])
     #G = np.array([[1,0,1],[1,1,1]])
     G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
+    G_HEIGHT, G_WIDTH = G.shape
+    
     encoded = viterbiEncoder(message, G)
-    noise = 0.06 # 5 procent error
+    chars_to_remove = 4 # Remove 4 first characters
+    for _ in range(chars_to_remove): # Remove 4 first characters
+        message.pop(0)
+        for __ in range(G_HEIGHT):
+            encoded = np.delete(encoded, 0)
+
+
+    noise = 0.04 # 4 procent error
     for i in range(len(encoded)):
         if np.random.rand() < noise: 
             encoded[i] = (encoded[i]+1)%2
 
-    #foldningskode = Foldningskode(["1101", "1111"])
-    #kodet_bitstreng = foldningskode.encode("0101110011")
-    #print(kodet_bitstreng)
-    G_HEIGHT, G_WIDTH = G.shape
+ 
     M = G_WIDTH-1
     L = 10 * M
-    #print(G_WIDTH, G_HEIGHT)
+    
+
     # Initiate trellis
     trellis = [[Node(len(encoded)) for _ in range(2**M)] for _ in range(len(encoded)//G_HEIGHT + 1)]
     for column_index in range(len(trellis)-1):
@@ -140,8 +147,6 @@ def main():
             tilstand_1 = np.concatenate(([1], tilstand)) # Til bestemmelse af forbindelse.
             output0 = np.array([])
             output1 = np.array([])
-            #print(format(node_index, "b"))
-            #print(tilstand)
             for generator in G:
                 shared1s_for_0 = np.bitwise_and(tilstand_0, generator)
                 shared1s_for_1 = np.bitwise_and(tilstand_1, generator)
@@ -157,7 +162,7 @@ def main():
     for t in range(len(trellis[0])):
         trellis[0][t].minError = 0
         trellis[0][t].cameFrom = -1
-    #trellis[0][0].minError = 0
+    
     # Trellis search
     #for i in range((len(encoded)//G_HEIGHT + 1)//L-1):
     i = 0
@@ -184,16 +189,6 @@ def main():
         print(message[:i*L+L])
         print(decoded == message[:i*L+L])
         i += 1
-        
-    
-    print(len(decoded))
-            
-        #else:
-            #layer = len(window_trellis)-1
-            #for column_index in range(len(window_trellis)-1, L-1, -1):
-            #    decoded.insert(0,currentNode.decOut)
-            #    currentNode = window_trellis[layer][currentNode.cameFrom]
-                
     
     output = decoded
 
