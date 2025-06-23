@@ -73,8 +73,11 @@ def viterbiDecode(trellis, encoded, G):
             #print("toDecode:  ", toDecode)
             #print("node.out0: ", node.out0)
             
-            errors0 = np.sum((toDecode + node.out0) % 2)
-            errors1 = np.sum((toDecode + node.out1) % 2)
+            #errors0 = np.sum((toDecode + node.out0) % 2)
+            #errors1 = np.sum((toDecode + node.out1) % 2)
+
+            errors0 = findMetric(toDecode, (node.out0 - 0.5) * 2)
+            errors1 = findMetric(toDecode, (node.out1 - 0.5) * 2)
             
             if trellis[column_index+1][node.in0].minError > node.minError + errors0:
                 trellis[column_index+1][node.in0].minError = node.minError + errors0
@@ -111,7 +114,23 @@ def viterbiDecode(trellis, encoded, G):
     output = output[::-1]
     return output
 
+def findMetric(received, expected):
+    # INPUTS:
+    # received: array of received values
+    # expected: array of expected values
+    # OUTPUT:
+    # 'the amount of errors' between the two (not actual amount of errors but simplified number)
 
+    metricValues = np.zeros(len(expected))
+
+    for i in range(len(expected)):
+        if(received[i] >= 0 and expected[i] == -1):
+            metricValues[i] = np.abs(received[i])
+        
+        if(received[i] < 0 and expected[i] == 1):
+            metricValues[i] = np.abs(received[i])
+
+    return np.sum(metricValues)
 
 def addNoise(ratioInDB, array):
     # INPUTS:
@@ -141,7 +160,9 @@ def main():
     #    if np.random.rand() > 0.99: # 1 procent error
     #        encoded[i] = (encoded[i]+1)%2
 
-    encodedWithNoise = addNoise(3, (encoded - 0.5)*2)
+    ratioInDB = 2 # set ratio higher than -28dB
+
+    encodedWithNoise = addNoise(ratioInDB, (encoded - 0.5)*2)
 
     #foldningskode = Foldningskode(["1101", "1111"])
     #kodet_bitstreng = foldningskode.encode("0101110011")
@@ -172,11 +193,12 @@ def main():
             node.in0 = node_index>>1 #(node_index<<1) & ((2**M)-1) 
             node.in1 = (2**M+node_index)>>1#((node_index<<1)+1) & ((2**M)-1) #
 
-    decodedUsingMethod = viterbiDecode(trellis, encoded, G)    
+    #decodedUsingMethod = viterbiDecode(trellis, encoded, G)
+    decodedUsingMethod = viterbiDecode(trellis, encodedWithNoise, G)  
 
     ## Viterbi decoder from channelcoding:
     trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
-    decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='hard')
+    decodedUsingPackage = channelcoding.convcode.viterbi_decode(encodedWithNoise.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
 
     print(f'Message: ------------------- {np.array(message, dtype=int)}')
     print(f'Decoded using our decoder: - {np.array(decodedUsingMethod, dtype=int)}')
