@@ -87,6 +87,46 @@ def addNoise(ratioInDB, array):
 
     return array + noise
 
+def puncture(encodedMessage, puncturePattern):
+    # INPUTS:
+    # encodedMessage:  The encoded message to puncture
+    # puncturePattern: The pattern to be used for puncturing
+    # OUTPUTS:
+    # The encoded message but punctured
+
+    output = np.array([])
+    puncturePattern = (puncturePattern.T).flatten()
+
+    for i in range(len(encodedMessage)):
+        if(puncturePattern[i % len(puncturePattern)] == 1):
+            output = np.append(output, encodedMessage[i])
+
+    return output
+
+def patchPunctures(puncturedMessage, puncturePattern):
+    # INPUTS:
+    # puncturedMessage: The punctures message to patch
+    # puncturePattern:  The pattern used for puncturing
+    # OUTPUTS:
+    # The encoded message but with punctures patched
+
+    output = np.array([])
+    puncturePattern = (puncturePattern.T).flatten()
+
+    punctureIndex = 0
+    patternIndex = 0
+
+    while punctureIndex < len(puncturedMessage):
+        if(puncturePattern[patternIndex % len(puncturePattern)] == 1):
+            output = np.append(output, puncturedMessage[punctureIndex])
+            punctureIndex += 1
+        else:
+            output = np.append(output, 0)
+        
+        patternIndex += 1
+
+    return output
+
 def viterbiDecode(trellis, encoded, G, start_column=1):
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
@@ -151,6 +191,8 @@ def main():
     #G = np.array([[1,0,1],[1,1,1]])
     G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     G_HEIGHT, G_WIDTH = G.shape
+
+    puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
     
     encoded = viterbiEncoder(message, G)
     chars_to_remove = 0#9 # Remove 4 first characters
@@ -160,8 +202,8 @@ def main():
             encoded = np.delete(encoded, 0)
 
     ratioInDB = 2
-
     encodedWithNoise = addNoise(ratioInDB, (encoded - 0.5)*2)
+    encodedWithNoiseAndPunctures = puncture(encodedWithNoise, puncturePattern.copy())
     
     M = G_WIDTH-1
     L = 10 * M
@@ -196,7 +238,8 @@ def main():
     # Trellis search
     #for i in range((len(encoded)//G_HEIGHT + 1)//L-1):
     i = 0
-    encoded = encodedWithNoise
+    #encoded = encodedWithNoise
+    encoded = patchPunctures(encodedWithNoiseAndPunctures, puncturePattern.copy()) # Fixing punctures
     while i*L + 2*L < (len(encoded)//G_HEIGHT + 1):
         print(i*L, i*L+2*L)
         window_trellis = trellis[i*L:i*L+2*L]  
@@ -225,7 +268,7 @@ def main():
 
     ## Viterbi decoder from channelcoding:
     trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
-    decodedUsingPackage = channelcoding.convcode.viterbi_decode(encodedWithNoise.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
+    decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
 
     print(f'Message: ------------------- {np.array(message, dtype=int)}')
     print(f'Decoded using our decoder: - {np.array(decoded, dtype=int)}')
