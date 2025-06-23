@@ -57,11 +57,12 @@ def viterbiEncoder(message, G):
 def findMetric(received, expected):
     # INPUTS:
     # received: array of received values
-    # expected: array of expected values
+    # expected: array of expected values (with values {0, 1})
     # OUTPUT:
     # 'the amount of errors' between the two (not actual amount of errors but simplified number)
 
     metricValues = np.zeros(len(expected))
+    expected = (expected - 0.5) * 2
 
     for i in range(len(expected)):
         if(received[i] >= 0 and expected[i] == -1):
@@ -75,11 +76,11 @@ def findMetric(received, expected):
 def addNoise(ratioInDB, array):
     # INPUTS:
     # ratioInDB: signal to noise ratio expressed in dB
-    # array:     the signal to add noise to
+    # array:     the signal to add noise to (with values {0, 1})
     # OUTPUTS:
-    # an array with added noise
+    # an array with added noise (with decimal values centered around {-1, 1})
 
-    sigma = 1 / (np.sqrt(2)*np.sqrt(10**(ratioInDB/10)))
+    sigma = np.sqrt(0.5*10**(-ratioInDB/10))
     noise = sigma*np.random.randn(len(array))
 
     array = (array - 0.5) * 2
@@ -101,8 +102,8 @@ def viterbiDecode(trellis, encoded, G, start_column=1):
                 continue
             toDecode = encoded[column_index*G_HEIGHT:(column_index+1)*G_HEIGHT]
             
-            errors0 = findMetric(toDecode, (node.out0 - 0.5) * 2)
-            errors1 = findMetric(toDecode, (node.out1 - 0.5) * 2)
+            errors0 = findMetric(toDecode, node.out0)
+            errors1 = findMetric(toDecode, node.out1)
             
             if trellis[column_index+1][node.in0].minError > node.minError + errors0:
                 trellis[column_index+1][node.in0].minError = node.minError + errors0
@@ -158,7 +159,7 @@ def main():
         for __ in range(G_HEIGHT):
             encoded = np.delete(encoded, 0)
 
-    ratioInDB = -2 # set ratio higher than -28dB
+    ratioInDB = 2
 
     encodedWithNoise = addNoise(ratioInDB, (encoded - 0.5)*2)
     
