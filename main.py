@@ -56,24 +56,27 @@ def viterbiEncoder(message, G):
 
 def main():
     # Message to encode
-    message = [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0]
+    #message = [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0]
+    message_length = 70
+    message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
 
     # Initiate generator
-    """ G = np.array([[1, 1, 1, 1],
-                [1, 0, 1, 1],
-                [1, 1, 1, 0]])  """
-    G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
+    #G = np.array([[1, 1, 1, 1],
+    #            [1, 0, 1, 1],
+    #            [1, 1, 1, 0]])
+    G = np.array([[1,0,1],[1,1,1]])
+    #G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     encoded = viterbiEncoder(message, G)
-    for i in range(len(encoded)):
-        if np.random.rand() > 0.9: # 10 procent error
-            encoded[i] = (encoded[i]+1)%2
+    #for i in range(len(encoded)):
+        #if np.random.rand() > 0.90: # 10 procent error
+        #    encoded[i] = (encoded[i]+1)%2
 
     #foldningskode = Foldningskode(["1101", "1111"])
     #kodet_bitstreng = foldningskode.encode("0101110011")
     #print(kodet_bitstreng)
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH-1
-    print("M", M)
+    L = 10 * M
     #print(G_WIDTH, G_HEIGHT)
     # Initiate trellis
     trellis = [[Node(len(encoded)) for _ in range(2**M)] for _ in range(len(encoded)//G_HEIGHT + 1)]
@@ -94,60 +97,83 @@ def main():
                 output1 = np.append(output1, np.sum(shared1s_for_1)%2)
             node.out0 = output0
             node.out1 = output1
-            node.in0 = node_index>>1 #(node_index<<1) & ((2**M)-1) 
-            node.in1 = (2**M+node_index)>>1#((node_index<<1)+1) & ((2**M)-1) #
-    
+            node.in0 = node_index>>1
+            node.in1 = (2**M+node_index)>>1
+
+    decoded = []
     # Trellis search
-    trellis[0][0].minError = 0
-    for column_index in range(len(trellis)-1):
-        for node_index in range(len(trellis[column_index])):
-            node = trellis[column_index][node_index]
-            if node == 0:
-                continue
-            toDecode = encoded[column_index*G_HEIGHT:(column_index+1)*G_HEIGHT]
-            #if column_index==1 and node_index == 2:
-            #    print("For 0 vej", toDecode, node.out0, (toDecode + node.out0) % 2)
-            #    print("For 1 vej", toDecode, node.out1, (toDecode + node.out1) % 2)
+    for i in range((len(encoded)//G_HEIGHT + 1)//L):
+        print(i*L, i*L+2*L)
+        window_trellis = trellis[i*L:i*L+2*L]
+        
+        for column_index in range(len(window_trellis)):
+            for node_index in range(len(window_trellis[column_index])):
+                window_trellis[column_index][node_index].minError = len(encoded)
+        
+        for j in range(len(window_trellis[0])):
+            window_trellis[0][j].minError = 0
+            window_trellis[0][j].cameFrom = -1
+        
+        # Beregn fejlstørrelse ved alle tilstande
+        for column_index in range(len(window_trellis)-1):
+            for node_index in range(len(window_trellis[column_index])):
+                node = window_trellis[column_index][node_index]
+                if node == 0:
+                    continue
+                toDecode = encoded[i*L+column_index*G_HEIGHT:i*L+(column_index+1)*G_HEIGHT]
+                
+                errors0 = np.sum((toDecode + node.out0) % 2)
+                errors1 = np.sum((toDecode + node.out1) % 2)
+                
+                if window_trellis[column_index+1][node.in0].minError > node.minError + errors0:
+                    window_trellis[column_index+1][node.in0].minError = node.minError + errors0
+                    window_trellis[column_index+1][node.in0].cameFrom = node_index
+                    window_trellis[column_index+1][node.in0].decOut = 0
 
-            #print("toDecode:  ", toDecode)
-            #print("node.out0: ", node.out0)
-            
-            errors0 = np.sum((toDecode + node.out0) % 2)
-            errors1 = np.sum((toDecode + node.out1) % 2)
-            
-            if trellis[column_index+1][node.in0].minError > node.minError + errors0:
-                trellis[column_index+1][node.in0].minError = node.minError + errors0
-                trellis[column_index+1][node.in0].cameFrom = node_index
-                trellis[column_index+1][node.in0].decOut = 0
+                if window_trellis[column_index+1][node.in1].minError > node.minError + errors1:
+                    window_trellis[column_index+1][node.in1].minError = node.minError + errors1
+                    window_trellis[column_index+1][node.in1].cameFrom = node_index
+                    window_trellis[column_index+1][node.in1].decOut = 1
 
-            if trellis[column_index+1][node.in1].minError > node.minError + errors1:
-                trellis[column_index+1][node.in1].minError = node.minError + errors1
-                trellis[column_index+1][node.in1].cameFrom = node_index
-                trellis[column_index+1][node.in1].decOut = 1
+        trellis_distances = np.zeros((len(window_trellis),len(window_trellis[0])))
+        for column_index in range(len(window_trellis)):
+            for node_index in range(len(window_trellis[column_index])):
+                trellis_distances[column_index][node_index] = window_trellis[column_index][node_index].minError
+        #print(trellis_distances.T)
+
+        # Backtrack først L og append derefter L
+        #currentNode = window_trellis[len(window_trellis)-1][0]
+        #for node in window_trellis[len(window_trellis)-1][:]:
+        #    if node.minError < currentNode.minError:
+        #        currentNode = node
+   
+        
+        currentNode = window_trellis[len(window_trellis)-1][0]
+        layer = len(window_trellis)-1
+        while currentNode.cameFrom != -1:
+            layer -= 1
+            currentNode = window_trellis[layer][currentNode.cameFrom]
+            if layer < L:
+                decoded.insert(0, currentNode.decOut)
     
-    trellis_distances = np.zeros((len(trellis),len(trellis[0])))
-    for column_index in range(len(trellis)):
-        for node_index in range(len(trellis[column_index])):
-            trellis_distances[column_index, node_index] = trellis[column_index][node_index].minError
-
-    print(trellis_distances.T)
-
-    # Backtrack
-    currentNode = trellis[len(trellis)-1][0]
-    for node in trellis[len(trellis)-1][:]:
-        if node.minError < currentNode.minError:
-            currentNode = node
-    
-    output = []
-    layer = len(trellis)-1
-    while currentNode.cameFrom != -1:
-        #print(layer, trellis[layer].index(currentNode))
-        #print(currentNode.cameFrom)
-        output.append(currentNode.decOut)
+    currentNode = window_trellis[len(window_trellis)-1][0]  
+    layer = len(window_trellis)-1
+    while layer > L:
         layer -= 1
-        currentNode = trellis[layer][currentNode.cameFrom]
-    #print(layer, trellis[layer].index(currentNode))
-    output = output[::-1]
+        currentNode = window_trellis[layer][currentNode.cameFrom]
+        decoded.insert(0, currentNode.decOut)
+        
+    
+    print(len(decoded))
+            
+        #else:
+            #layer = len(window_trellis)-1
+            #for column_index in range(len(window_trellis)-1, L-1, -1):
+            #    decoded.insert(0,currentNode.decOut)
+            #    currentNode = window_trellis[layer][currentNode.cameFrom]
+                
+    
+    output = decoded
 
     ## Viterbi decoder from channelcoding:
     trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
