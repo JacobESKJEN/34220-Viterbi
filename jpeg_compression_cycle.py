@@ -52,6 +52,7 @@ def jpeg_compression_cycle(inputim, qf):
     yDCTBlkQM = apply_parallel(quantizeqm, yDCTBlk, (8,8), extra_arguments=(qm_y, q_scale/100), compute=True)
     cbDCTBlkQM = apply_parallel(quantizeqm, cbDCTBlk, (8,8), extra_arguments=(qm_c, q_scale/100), compute=True)
     crDCTBlkQM = apply_parallel(quantizeqm, crDCTBlk, (8,8), extra_arguments=(qm_c, q_scale/100), compute=True)
+    print(np.max(cbDCTBlkQM), np.max(cbDCTBlk))
 
     # Dequantize DCT coefficients
     yDCTBlkQMiQM = apply_parallel(unquantizeqm, yDCTBlkQM, (8,8), extra_arguments=(qm_y, q_scale/100), compute=True)
@@ -75,6 +76,35 @@ def jpeg_compression_cycle(inputim, qf):
     rgb[rgb<0] =0
     jpeg_result = rgb.astype('uint8')
 
-    print(jpeg_result)
+    return jpeg_result, (yDCTBlkQM, cbDCTBlkQM, crDCTBlkQM)
+
+def decode_jpeg(yDCTBlkQM, cbDCTBlkQM, crDCTBlkQM, qf):
+    # Quantization Factor
+    if qf < 50:
+        q_scale = m.floor(5000 / qf )
+    else:
+        q_scale = 200 - 2*qf
+
+    # Dequantize DCT coefficients
+    yDCTBlkQMiQM = apply_parallel(unquantizeqm, yDCTBlkQM, (8,8), extra_arguments=(qm_y, q_scale/100), compute=True)
+    cbDCTBlkQMiQM = apply_parallel(unquantizeqm, cbDCTBlkQM, (8,8), extra_arguments=(qm_c, q_scale/100), compute=True)
+    crDCTBlkQMiQM = apply_parallel(unquantizeqm, crDCTBlkQM, (8,8), extra_arguments=(qm_c, q_scale/100), compute=True)
+    
+    # Inverse DCT with scaling before
+    yDCTBlkQMiQMiDCT = apply_parallel(idctn, yDCTBlkQMiQM/q_max, (8,8), extra_keywords={'norm': 'ortho'}, compute=True)
+    cbDCTBlkQMiQMiDCT = apply_parallel(idctn, cbDCTBlkQMiQM/q_max, (8,8), extra_keywords={'norm': 'ortho'}, compute=True)
+    crDCTBlkQMiQMiDCT = apply_parallel(idctn, crDCTBlkQMiQM/q_max, (8,8), extra_keywords={'norm': 'ortho'}, compute=True)
+
+    # Upsample chroma
+    cbrec = rescale(cbDCTBlkQMiQMiDCT, (2,2), mode='edge', preserve_range=True)
+    crrec = rescale(crDCTBlkQMiQMiDCT, (2,2), mode='edge', preserve_range=True)
+    yrec = yDCTBlkQMiQMiDCT
+    
+    # Concatenate the channels
+    ycbcrrec = np.dstack((yrec , cbrec -0.5 , crrec -0.5))
+    rgb = 255*ycbcr2rgb(ycbcrrec)
+    rgb[rgb>255] =255
+    rgb[rgb<0] =0
+    jpeg_result = rgb.astype('uint8')
 
     return jpeg_result

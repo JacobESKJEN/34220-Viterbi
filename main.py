@@ -4,6 +4,7 @@ from commpy import channelcoding
 import imageio.v3 as iio
 from jpeg_compression_cycle import *
 from Huffman_minVar import *
+import matplotlib.pyplot as plt
 
 def intToBin(intInput, length): # Didn't have to be reversed anyway
     binary = format(intInput, "b")
@@ -12,6 +13,17 @@ def intToBin(intInput, length): # Didn't have to be reversed anyway
     for item in binary:
         result.append(int(item))
     return result
+    """for item_i in range(len(binary)):
+        if binary[item_i-1] == "-":
+            continue
+        item = binary[item_i]
+        if item != "-":
+            result.append(int(item))
+        else:
+            result[0] = result[0]
+            result.append(int(item + binary[item_i+1]))
+    print(result, int("".join(str(x) for x in result), 2))
+    return result"""
 
 def generatorMatrixToIntsReversed(G): # Useful for comparing our decoder's results with the built-in channelcoding decoder
     # INPUTS:
@@ -241,8 +253,73 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures):
         i += 1
     return decoded
     
+def encodeHuffman(huffmantable, toEncode):
+    result = []
+    n = 0
+    sorted_uniques = np.unique(np.array(toEncode))
+    if len(toEncode.shape) == 2:
+        for i in range(len(toEncode)):
+            for j in range(len(toEncode[i])):
+                index = np.where(sorted_uniques == toEncode[i][j])
+                n+=1
+                #print(n/(len(toEncode)*len(toEncode[i])))
+                result.append(huffmantable[index][0][1])
+    else:
+        for i in range(len(toEncode)):
+            index = np.where(sorted_uniques == toEncode[i])
+            
+            n+=1
+            #print(n/(len(toEncode)*len(toEncode[i])))
+            result.append(huffmantable[index][0][1])
+            if i < 20:
+                #print(index, huffmantable[index], toEncode[i])
+                pass
+    return "".join(str(x) for x in result)
 
 def main():
+    img = iio.imread("rsc/I52.png")
+    height, width = img.shape[:2]
+    qf = .5
+    img_jpeg, compressed = jpeg_compression_cycle(img, qf)
+
+    #decompressed = decode_jpeg(compressed[0], compressed[1], compressed[2], .1)
+    #print(compressed)
+    combined = np.concatenate((compressed[0].flatten(),compressed[1].flatten(), compressed[2].flatten()))
+    #print(combined)
+    #print("Length should be:", combined.shape)
+    chars, counts = np.unique(combined, return_counts=True)
+     
+    freq = counts / sum(counts)
+    huffmantable, huffmantree = buildHuffDictMV(chars, freq)
+    
+    huffman_coded = encodeHuffman(huffmantable, combined)
+    print(len(huffman_coded))
+    #print(huffman_coded[:30])
+    #print("Will decode now")
+    decompressed_combined = decodehuff(huffmantree, huffman_coded)
+    print(len(decompressed_combined))
+    #print(decompressed_combined[0:10])
+    decompressed_luminence_flat = decompressed_combined[:width*height]
+    decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
+    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
+    decompressed_luminence = np.zeros((height, width))
+    decompressed_cb = np.zeros((height//2, width//2))
+    decompressed_cr = np.zeros((height//2, width//2))
+    for y in range(height):
+        for x in range(width):
+            decompressed_luminence[y][x] = decompressed_luminence_flat[width*y+x]
+    for y in range(height//2):
+        for x in range(width//2):
+            decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
+            decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
+    
+    decompressed = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
+
+    fig, ax = plt.subplots(nrows=1, ncols=3)
+    ax[0].imshow(img_jpeg)
+    ax[1].imshow(decompressed)
+    ax[2].imshow(img)
+    plt.show(block=True)
     # Initiate generator
     #G = np.array([[1, 1, 1, 1],
     #            [1, 0, 1, 1],

@@ -102,7 +102,7 @@ def decodehuff(huffmantree, encodedString):
     # Input:    huffmantree - the full huffman tree (using the class nodeMV) to be used for decoding
     #           encodedString - the sequence to decode - as one long string
     # Output:   decodedarray the obtained decoded array - float format
-    ans = np.empty((0,),dtype=float)
+    ans = []
     curr = huffmantree
     n = len(encodedString)
     for i in range(n):
@@ -114,7 +114,8 @@ def decodehuff(huffmantree, encodedString):
  
         # reached leaf node
         if curr.left is None and curr.right is None:
-            ans = np.append(ans, float(curr.symbol))
+            #ans = np.append(ans, float(curr.symbol))
+            ans.append(float(curr.symbol))
             curr = huffmantree
 
     decodedarray = ans
