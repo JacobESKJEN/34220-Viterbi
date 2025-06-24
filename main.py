@@ -195,7 +195,7 @@ def main():
     puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
     
     encoded = viterbiEncoder(message, G)
-    chars_to_remove = 0#9 # Remove 4 first characters
+    chars_to_remove = 5 # Remove 4 first characters
     for _ in range(chars_to_remove): # Remove 4 first characters
         message.pop(0)
         for __ in range(G_HEIGHT):
@@ -206,7 +206,7 @@ def main():
     encodedWithNoiseAndPunctures = puncture(encodedWithNoise, puncturePattern.copy())
     
     M = G_WIDTH-1
-    L = 10 * M
+    L = 9 * M
     
     # Initiate trellis
     trellis = [[Node(len(encoded)) for _ in range(2**M)] for _ in range(len(encoded)//G_HEIGHT + 1)]
