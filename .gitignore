@@ -1,2 +1,4 @@
 *.yuv
 /__pycache__
+/__pycache__
+__pycache__/Huffman_minVar.cpython-311.pyc
