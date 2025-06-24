@@ -326,7 +326,7 @@ def main():
 
     message_with_noise = np.round(message + noisePattern[:len(message)]) % 2
 
-    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.zeros(2*L))) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
+    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L))) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
 
 
 
@@ -341,8 +341,8 @@ def main():
     #print("Decoded same as channelcoding?:",(decodedUsingPackage[0:len(output)] == output).all())
     #print("Channel coding correct?:", (decodedUsingPackage == message).all())
 
-    decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in message_with_noise))
-    print(decompressed_combined[:25], combined[:25])
+    """ decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in message_with_noise))
+    
     decompressed_luminence_flat = decompressed_combined[:width*height]
     decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
     decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
@@ -357,10 +357,11 @@ def main():
             decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
             decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
     
-    decompressed_no_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
+    decompressed_no_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf) """
 
     decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in output))
     print(decompressed_combined[:25], combined[:25])
+    print(len(decompressed_combined), len(combined))
     decompressed_luminence_flat = decompressed_combined[:width*height]
     decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
     decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
@@ -378,10 +379,10 @@ def main():
     decompressed_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
 
 
-    fig, ax = plt.subplots(nrows=1, ncols=3)
+    fig, ax = plt.subplots(nrows=1, ncols=2)
     ax[0].imshow(img)
-    ax[1].imshow(decompressed_no_conv_code)
-    ax[2].imshow(decompressed_conv_code)
+    #ax[1].imshow(decompressed_no_conv_code)
+    ax[1].imshow(decompressed_conv_code)
     plt.show(block=True)
 
 
