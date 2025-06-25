@@ -203,7 +203,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodin
     G_HEIGHT, G_WIDTH = G.shape
     
     M = G_WIDTH-1
-    L = 9 * M
+    L = 10 * M
     
     if(decodingType == 'soft'):
         encoded = patchPunctures(encodedWithNoiseAndPunctures, puncturePattern.copy())
@@ -286,129 +286,60 @@ def encodeHuffman(huffmantable, toEncode):
     return "".join(str(x) for x in result)
 
 def main():
-    img = iio.imread("rsc/I52.png")
-    height, width = img.shape[:2]
-    qf = .5
-    img_jpeg, compressed = jpeg_compression_cycle(img, qf)
-    ratioInDB = 5
+    ratioInDB = 3
     decodingType = 'soft'
-
-    #decompressed = decode_jpeg(compressed[0], compressed[1], compressed[2], .1)
-    #print(compressed)
-    combined = np.concatenate((compressed[0].flatten(),compressed[1].flatten(), compressed[2].flatten()))
-    #print(combined)
-    #print("Length should be:", combined.shape)
-    chars, counts = np.unique(combined, return_counts=True)
-     
-    freq = counts / sum(counts)
-    huffmantable, huffmantree = buildHuffDictMV(chars, freq)
-    
-    huffman_coded = encodeHuffman(huffmantable, combined)
-    print(len(huffman_coded))
 
     # Initiate generator
     #G = np.array([[1, 1, 1, 1],
     #            [1, 0, 1, 1],
     #            [1, 1, 1, 0]])
-    G = np.array([[1,0,1],[1,1,1]])
-    #G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
+    #G = np.array([[1,0,1],[1,1,1]])
+    G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
-
-    #message_length = 1000
-    #message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
-    message = [int(x) for x in huffman_coded]
-   
-    message_length=len(message)
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
     L = 10 * M
-
-    
-    encoded = viterbiEncoder(message, G)
-    chars_to_remove = 0 # Remove 0 first characters
-    for _ in range(chars_to_remove): # Remove 0 first characters
-        message.pop(0)
-        for __ in range(G_HEIGHT):
-            encoded = np.delete(encoded, 0)
-
-    ratioInDB = 16.2
-    if(decodingType == 'soft'):
-        encodedWithPunctures = puncture(encoded, puncturePattern.copy())
-    else:
-        encodedWithPunctures = encoded
+    correct_decoded = 0
+    for i in range(100):
+        message_length = 100
+        message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
         
-    encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
+        encoded = viterbiEncoder(message, G)
+        chars_to_remove = np.random.randint(10, 21) # Remove between 10 and 20 first characters
+        for _ in range(chars_to_remove):
+            message.pop(0)
+            for __ in range(G_HEIGHT):
+                encoded = np.delete(encoded, 0)
 
-    message_with_noise = ((message + noisePattern[:len(message)]) > 0.5) * 1
-    print("Amount of noise:", np.sum(message_with_noise != message))
-    print(len(message), len(message_with_noise))
+        if(decodingType == 'soft'):
+            encodedWithPunctures = puncture(encoded, puncturePattern.copy())
+        else:
+            encodedWithPunctures = encoded
+            
+        encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
 
-    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-    print("Output", len(output), "Message(noise)", len(message_with_noise))
-
-
-    ## Viterbi decoder from channelcoding:
-    #trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
-    #decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
-
-    #print(f'Message: ------------------- {np.array(message, dtype=int)}')
-    #print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
-    #print(f'Decoded using channelcoding: {decodedUsingPackage}')
-    print("Decoded message correct?:", message[0:len(output)] == output)
-    #print("Decoded same as channelcoding?:",(decodedUsingPackage[0:len(output)] == output).all())
-    #print("Channel coding correct?:", (decodedUsingPackage == message).all())
-
-    decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in output))
-    print(decompressed_combined[:25], combined[:25])
-    print(len(decompressed_combined), len(combined))
-    decompressed_luminence_flat = decompressed_combined[:width*height]
-    decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
-    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
-    decompressed_luminence = np.zeros((height, width))
-    decompressed_cb = np.zeros((height//2, width//2))
-    decompressed_cr = np.zeros((height//2, width//2))
-    for y in range(height):
-        for x in range(width):
-            decompressed_luminence[y][x] = decompressed_luminence_flat[width*y+x]
-    for y in range(height//2):
-        for x in range(width//2):
-            decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
-            decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
-    
-    decompressed_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
+        output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.zeros(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
+        output = output[:int(len(encodedWithNoiseAndPunctures)*(2/3))]
 
 
-    decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in message_with_noise))
-    
-    decompressed_luminence_flat = decompressed_combined[:width*height]
-    decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
-    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
-    print("Lengths:", len(decompressed_combined), len(decompressed_luminence_flat), len(decompressed_cb_flat), len(decompressed_cr_flat),len(decompressed_luminence_flat) + len(decompressed_cb_flat) + len(decompressed_cr_flat))
-    decompressed_luminence = np.zeros((height, width))
-    decompressed_cb = np.zeros((height//2, width//2))
-    decompressed_cr = np.zeros((height//2, width//2))
-    for y in range(height):
-        for x in range(width):
-            decompressed_luminence[y][x] = decompressed_luminence_flat[width*y+x]
-    for y in range(height//2):
-        for x in range(width//2):
-            decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
-            #print(len(decompressed_cr_flat), (width//2)*y+x)
-            if (width//2)*y+x < len(decompressed_cr_flat):
-                decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
+        ## Viterbi decoder from channelcoding:
+        #trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
+        #decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
 
-    decompressed_no_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
-
-
-    fig, ax = plt.subplots(nrows=1, ncols=3)
-    ax[0].imshow(img_jpeg)
-    ax[0].set_title("Compressed image\n No noise")
-    ax[1].imshow(decompressed_conv_code)
-    ax[1].set_title("Compressed image\n Noise error corrected")
-    ax[2].imshow(decompressed_no_conv_code)
-    ax[2].set_title("Compressed image \n Noise no error correction")
-    plt.show(block=True)
-
+        #print(f'Message: ------------------- {np.array(message, dtype=int)}')
+        #print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
+        #print(f'Decoded using channelcoding: {decodedUsingPackage}')
+        #print("Decoded message correct?:", message == output)
+        if message==output:
+            correct_decoded +=1
+            print("Correct")
+        else:
+            print("Wrong")
+            print(message)
+            print(output)
+        #print("Decoded same as channelcoding?:",(decodedUsingPackage == output).all())
+        #print("Channel coding correct?:", (decodedUsingPackage == message).all())
+    print(f"Correctly decoded {correct_decoded}%")
 
 if __name__ == "__main__":
     main()
