@@ -286,15 +286,18 @@ def encodeHuffman(huffmantable, toEncode):
     return "".join(str(x) for x in result)
 
 def main():
-    # Test 2: Soft vs hard decision decoding, SNR 1, no puncturing, 1000 bits long message, simple generator
+    # Test 6: Soft decoding
     ratioInDB = 1
 
     # Initiate generator
     G = np.array([[1,0,1],[1,1,1]])
-    puncturePattern = np.array([[1, 1], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
+    puncturePattern0 = np.array([[1, 1], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
+    puncturePattern1 = np.array([[1, 0], [1, 1]])
+    puncturePattern2 = np.array([[1, 0, 1], [1, 1, 0]])
 
-    softCouldSolve = 0
-    hardCouldSolve = 0
+    couldSolvePattern0 = 0
+    couldSolvePattern1 = 0
+    couldSolvePattern2 = 0
 
     message_length = 500
 
@@ -303,21 +306,29 @@ def main():
 
         encoded = viterbiEncoder(message, G)
         encodedWithNoise, noisePattern = addNoise(ratioInDB, (encoded - 0.5)*2)
+        encodedWithNoiseAndPunctures0 = puncture(encodedWithNoise, puncturePattern0)
+        encodedWithNoiseAndPunctures1 = puncture(encodedWithNoise, puncturePattern1)
+        encodedWithNoiseAndPunctures2 = puncture(encodedWithNoise, puncturePattern2)
 
-        outputSoft = viterbiDecode(G, encodedWithNoise, puncturePattern, 'soft')
-        outputHard = viterbiDecode(G, encodedWithNoise, puncturePattern, 'hard')
+        outputPattern0 = viterbiDecode(G, encodedWithNoiseAndPunctures0, puncturePattern0, 'soft')
+        outputPattern1 = viterbiDecode(G, encodedWithNoiseAndPunctures1, puncturePattern1, 'soft')
+        outputPattern2 = viterbiDecode(G, encodedWithNoiseAndPunctures2, puncturePattern2, 'soft')
 
-        if(message[0:len(outputSoft)] == outputSoft):
-            softCouldSolve += 1
+        if(message[0:len(outputPattern0)] == outputPattern0):
+            couldSolvePattern0 += 1
         
-        if(message[0:len(outputHard)] == outputHard):
-            hardCouldSolve += 1
+        if(message[0:len(outputPattern1)] == outputPattern1):
+            couldSolvePattern1 += 1
+        
+        if(message[0:len(outputPattern2)] == outputPattern2):
+            couldSolvePattern2 += 1
         
         if(i % 100 == 0):
             print("i: ", i, "/10000")
     
-    print("softCouldSolve: ", softCouldSolve)
-    print("hardCouldSolve: ", hardCouldSolve)
+    print("couldSolvePattern0: ", couldSolvePattern0)
+    print("couldSolvePattern1: ", couldSolvePattern1)
+    print("couldSolvePattern2: ", couldSolvePattern2)
 
 
 if __name__ == "__main__":
