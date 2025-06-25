@@ -293,8 +293,8 @@ def main():
     #G = np.array([[1, 1, 1, 1],
     #            [1, 0, 1, 1],
     #            [1, 1, 1, 0]])
-    #G = np.array([[1,0,1],[1,1,1]])
-    G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
+    G = np.array([[1,0,1],[1,1,1]])
+    #G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
