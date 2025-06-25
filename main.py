@@ -143,7 +143,7 @@ def patchPunctures(puncturedMessage, puncturePattern):
 
     return np.array(output)
 
-def viterbiSearchAndBacktrack(trellis, encoded, G, start_column=1, decodingType='soft'):
+def viterbiSearchAndBacktrack(trellis, encoded, G, start_column=1, decodingType='soft', backtrack_start=0):
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
 
@@ -184,7 +184,7 @@ def viterbiSearchAndBacktrack(trellis, encoded, G, start_column=1, decodingType=
     #print(trellis_distances.T)
 
     # Backtrack
-    currentNode = trellis[len(trellis)-1][0]
+    currentNode = trellis[len(trellis)-1][backtrack_start]
     for node in trellis[len(trellis)-1]:
         if node.minError < currentNode.minError:
             currentNode = node
@@ -199,10 +199,12 @@ def viterbiSearchAndBacktrack(trellis, encoded, G, start_column=1, decodingType=
     output = output[::-1]
     return output, trellis
 
-def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodingType='soft'):
+def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodingType='soft', backtrack_start=0):
+    
     G_HEIGHT, G_WIDTH = G.shape
     
     M = G_WIDTH-1
+    print(backtrack_start, M)
     L = 10 * M
     
     if(decodingType == 'soft'):
@@ -255,7 +257,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodin
 
         part_of_encoded = encoded[i*L*G_HEIGHT:(i*L+2*L)*G_HEIGHT]
         
-        output, updated_trellis = viterbiSearchAndBacktrack(window_trellis, part_of_encoded, G, start_column=start_column_index-1, decodingType=decodingType)
+        output, updated_trellis = viterbiSearchAndBacktrack(window_trellis, part_of_encoded, G, start_column=start_column_index-1, decodingType=decodingType, backtrack_start=backtrack_start)
         trellis[i*L:i*L+2*L] = updated_trellis
         
         decoded += output[0:L]
@@ -293,8 +295,8 @@ def main():
     #G = np.array([[1, 1, 1, 1],
     #            [1, 0, 1, 1],
     #            [1, 1, 1, 0]])
-    #G = np.array([[1,0,1],[1,1,1]])
-    G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
+    G = np.array([[1,0,1],[1,1,1]])
+    #G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
@@ -305,7 +307,7 @@ def main():
         message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
         
         encoded = viterbiEncoder(message, G)
-        chars_to_remove = np.random.randint(10, 21) # Remove between 10 and 20 first characters
+        chars_to_remove = 0 # Remove 0 first characters
         for _ in range(chars_to_remove):
             message.pop(0)
             for __ in range(G_HEIGHT):
@@ -318,28 +320,29 @@ def main():
             
         encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
 
-        output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.zeros(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-        output = output[:int(len(encodedWithNoiseAndPunctures)*(2/3))]
+        for _ in range(4):
+            output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.zeros(3*L)), puncturePattern, decodingType, backtrack_start=np.random.randint(0,2**M)) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
+            output = output[:int(len(encodedWithNoiseAndPunctures)*(2/3))]
 
 
-        ## Viterbi decoder from channelcoding:
-        #trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
-        #decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
+            ## Viterbi decoder from channelcoding:
+            #trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
+            #decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
 
-        #print(f'Message: ------------------- {np.array(message, dtype=int)}')
-        #print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
-        #print(f'Decoded using channelcoding: {decodedUsingPackage}')
-        #print("Decoded message correct?:", message == output)
-        if message==output:
-            correct_decoded +=1
-            print("Correct")
-        else:
-            print("Wrong")
-            print(message)
-            print(output)
+            #print(f'Message: ------------------- {np.array(message, dtype=int)}')
+            #print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
+            #print(f'Decoded using channelcoding: {decodedUsingPackage}')
+            #print("Decoded message correct?:", message == output)
+            if message==output:
+                correct_decoded +=1
+                print("Correct")
+            else:
+                print("Wrong")
+                print(message)
+                print(output)
         #print("Decoded same as channelcoding?:",(decodedUsingPackage == output).all())
         #print("Channel coding correct?:", (decodedUsingPackage == message).all())
-    print(f"Correctly decoded {correct_decoded}%")
+    print(f"Correctly decoded {100*correct_decoded/400}%")
 
 if __name__ == "__main__":
     main()
