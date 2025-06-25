@@ -52,7 +52,7 @@ def viterbiEncoder(message, G):
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
 
-    print(f'G_HEIGHT: {G_HEIGHT}, G_WIDTH: {G_WIDTH}, M: {M}')
+    #print(f'G_HEIGHT: {G_HEIGHT}, G_WIDTH: {G_WIDTH}, M: {M}')
 
     shiftRegister = np.zeros(M, dtype=int)
     encoded = []
@@ -66,7 +66,7 @@ def viterbiEncoder(message, G):
         
         shiftRegister = np.roll(shiftRegister, 1)
         shiftRegister[0] = message[i]
-    print("Encoded")
+    #print("Encoded")
     return np.array(encoded)
 
 def findMetric(received, expected):
@@ -94,9 +94,9 @@ def addNoise(ratioInDB, array):
     # array:     the signal to add noise to (with values {0, 1})
     # OUTPUTS:
     # an array with added noise (with decimal values centered around {-1, 1})
-    print("Adding noise")
+    #print("Adding noise")
     sigma = np.sqrt(0.5*10**(-ratioInDB/10))
-    print("Sigma",sigma)
+    #print("Sigma",sigma)
     noise = sigma*np.random.randn(len(array))
 
     array = (array - 0.5) * 2
@@ -115,7 +115,7 @@ def puncture(encodedMessage, puncturePattern):
     for i in range(len(encodedMessage)):
         if(puncturePattern[i % len(puncturePattern)] == 1):
             output.append(encodedMessage[i])
-    print("Punctured")
+    #print("Punctured")
     return np.array(output)
 
 def patchPunctures(puncturedMessage, puncturePattern):
@@ -207,7 +207,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodin
     
     if(decodingType == 'soft'):
         encoded = patchPunctures(encodedWithNoiseAndPunctures, puncturePattern.copy())
-        print("Punctures fixed")
+        #print("Punctures fixed")
     else:
         encoded = encodedWithNoiseAndPunctures # Does not contain punctures
     
@@ -232,7 +232,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodin
             node.in0 = node_index>>1
             node.in1 = (2**M+node_index)>>1
 
-    print("Trellis initiated")
+    #print("Trellis initiated")
     decoded = []
 
     # Trellis search
@@ -240,7 +240,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodin
         trellis[0][t].minError = 0
         trellis[0][t].cameFrom = -1
 
-    print("Backtracking")
+    #print("Backtracking")
     i = 0
     while i*L + 2*L < (len(encoded)//G_HEIGHT + 1):
         window_trellis = trellis[i*L:i*L+2*L]  
@@ -286,55 +286,38 @@ def encodeHuffman(huffmantable, toEncode):
     return "".join(str(x) for x in result)
 
 def main():
-    # Test 0: Soft, window, puncturing, 1.000 long message, simple generator, small amount of noise
-    qf = .5
-    ratioInDB = 5
-    decodingType = 'soft'
+    # Test 2: Soft vs hard decision decoding, SNR 1, no puncturing, 1000 bits long message, simple generator
+    ratioInDB = 1
 
     # Initiate generator
-    #G = np.array([[1, 1, 1, 1],
-    #            [1, 0, 1, 1],
-    #            [1, 1, 1, 0]])
     G = np.array([[1,0,1],[1,1,1]])
-    #G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
-    puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
+    puncturePattern = np.array([[1, 1], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
 
-    message_length = 1000
-    message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
+    softCouldSolve = 0
+    hardCouldSolve = 0
 
-    G_HEIGHT, G_WIDTH = G.shape
-    M = G_WIDTH - 1
-    L = 10 * M
+    message_length = 500
+
+    for i in range(10000):
+        message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
+
+        encoded = viterbiEncoder(message, G)
+        encodedWithNoise, noisePattern = addNoise(ratioInDB, (encoded - 0.5)*2)
+
+        outputSoft = viterbiDecode(G, encodedWithNoise, puncturePattern, 'soft')
+        outputHard = viterbiDecode(G, encodedWithNoise, puncturePattern, 'hard')
+
+        if(message[0:len(outputSoft)] == outputSoft):
+            softCouldSolve += 1
+        
+        if(message[0:len(outputHard)] == outputHard):
+            hardCouldSolve += 1
+        
+        if(i % 100 == 0):
+            print("i: ", i, "/10000")
     
-    encoded = viterbiEncoder(message, G)
-
-    ratioInDB = 3
-    if(decodingType == 'soft'):
-        encodedWithPunctures = puncture(encoded, puncturePattern.copy())
-    else:
-        encodedWithPunctures = encoded
-    
-    encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
-
-    #message_with_noise = ((message + noisePattern[:len(message)]) > 0.5) * 1
-    #print("Amount of noise:", np.sum(message_with_noise != message))
-    #print(len(message), len(message_with_noise))
-
-    #output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-    output = viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-    print("Output length: ", len(output))
-    print("Input length:  ", len(message))
-
-    ## Viterbi decoder from channelcoding:
-    #trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
-    #decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
-
-    #print(f'Message: ------------------- {np.array(message, dtype=int)}')
-    #print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
-    #print(f'Decoded using channelcoding: {decodedUsingPackage}')
-    print("Decoded message correct?: ", message[0:len(output)] == output)
-    #print("Decoded same as channelcoding?:",(decodedUsingPackage[0:len(output)] == output).all())
-    #print("Channel coding correct?:", (decodedUsingPackage == message).all())
+    print("softCouldSolve: ", softCouldSolve)
+    print("hardCouldSolve: ", hardCouldSolve)
 
 
 if __name__ == "__main__":
