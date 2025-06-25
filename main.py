@@ -346,7 +346,7 @@ def main():
     print("Amount of noise:", np.sum(message_with_noise != message))
     print(len(message), len(message_with_noise))
 
-    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
+    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.zeros(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
     output = output[:int(len(encodedWithNoiseAndPunctures)*codeRateFromPuncturePattern(puncturePattern))]
     print("Output", len(output), "Message(noise)", len(message_with_noise))
 
