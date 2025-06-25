@@ -96,6 +96,7 @@ def addNoise(ratioInDB, array):
     # an array with added noise (with decimal values centered around {-1, 1})
     print("Adding noise")
     sigma = np.sqrt(0.5*10**(-ratioInDB/10))
+    print("Sigma",sigma)
     noise = sigma*np.random.randn(len(array))
 
     array = (array - 0.5) * 2
@@ -309,7 +310,7 @@ def main():
     message_length=len(message)
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
-    L = 9 * M
+    L = 10 * M
 
     puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
     
@@ -320,11 +321,12 @@ def main():
         for __ in range(G_HEIGHT):
             encoded = np.delete(encoded, 0)
 
-    ratioInDB = 10
+    ratioInDB = 16.2
     encodedWithPunctures = puncture(encoded, puncturePattern.copy())
     encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
 
-    message_with_noise = np.round(message + noisePattern[:len(message)]) % 2
+    message_with_noise = ((message + noisePattern[:len(message)]) > 0.5) * 1
+    print("Amount of noise:", np.sum(message_with_noise != message))
     print(len(message), len(message_with_noise))
 
     output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L))) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
@@ -347,7 +349,7 @@ def main():
     print(len(decompressed_combined), len(combined))
     decompressed_luminence_flat = decompressed_combined[:width*height]
     decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
-    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)+1]
+    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
     decompressed_luminence = np.zeros((height, width))
     decompressed_cb = np.zeros((height//2, width//2))
     decompressed_cr = np.zeros((height//2, width//2))
@@ -366,7 +368,7 @@ def main():
     
     decompressed_luminence_flat = decompressed_combined[:width*height]
     decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
-    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)+1]
+    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
     print("Lengths:", len(decompressed_combined), len(decompressed_luminence_flat), len(decompressed_cb_flat), len(decompressed_cr_flat),len(decompressed_luminence_flat) + len(decompressed_cb_flat) + len(decompressed_cr_flat))
     decompressed_luminence = np.zeros((height, width))
     decompressed_cb = np.zeros((height//2, width//2))
@@ -378,15 +380,19 @@ def main():
         for x in range(width//2):
             decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
             #print(len(decompressed_cr_flat), (width//2)*y+x)
-            decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
+            if (width//2)*y+x < len(decompressed_cr_flat):
+                decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
 
     decompressed_no_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
 
 
     fig, ax = plt.subplots(nrows=1, ncols=3)
-    ax[0].imshow(img)
-    ax[1].imshow(decompressed_no_conv_code)
-    ax[2].imshow(decompressed_conv_code)
+    ax[0].imshow(img_jpeg)
+    ax[0].set_title("Compressed image\n No noise")
+    ax[1].imshow(decompressed_conv_code)
+    ax[1].set_title("Compressed image\n Noise error corrected")
+    ax[2].imshow(decompressed_no_conv_code)
+    ax[2].set_title("Compressed image \n Noise no error correction")
     plt.show(block=True)
 
 
