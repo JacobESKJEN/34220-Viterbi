@@ -316,14 +316,6 @@ def main():
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
 
             G_HEIGHT, G_WIDTH0 = G0.shape
-            M0 = G_WIDTH0 - 1
-            L0 = 10 * M0
-            G_HEIGHT, G_WIDTH1 = G1.shape
-            M1 = G_WIDTH1 - 1
-            L1 = 10 * M1
-            G_HEIGHT, G_WIDTH2 = G2.shape
-            M2 = G_WIDTH2 - 1
-            L2 = 10 * M2
             
             encoded0 = viterbiEncoder(message, G0)
 
@@ -350,8 +342,6 @@ def main():
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
 
             G_HEIGHT, G_WIDTH1 = G1.shape
-            M1 = G_WIDTH1 - 1
-            L1 = 10 * M1
             
             encoded1 = viterbiEncoder(message, G1)
 
@@ -378,8 +368,6 @@ def main():
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
 
             G_HEIGHT, G_WIDTH2 = G2.shape
-            M2 = G_WIDTH2 - 1
-            L2 = 10 * M2
             
             encoded2 = viterbiEncoder(message, G2)
 
@@ -398,8 +386,6 @@ def main():
         
         print("ratioInDB2: ", ratioInDB2)
         ratioInDB2 += -0.5
-    
-
 
     print("ratioBarrier0: ", ratioBarrier0)
     print("ratioBarrier1: ", ratioBarrier1)
