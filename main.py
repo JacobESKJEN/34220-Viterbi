@@ -203,7 +203,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodin
     G_HEIGHT, G_WIDTH = G.shape
     
     M = G_WIDTH-1
-    L = 9 * M
+    L = 10 * M
     
     if(decodingType == 'soft'):
         encoded = patchPunctures(encodedWithNoiseAndPunctures, puncturePattern.copy())
@@ -343,7 +343,7 @@ def main():
     print("Amount of noise:", np.sum(message_with_noise != message))
     print(len(message), len(message_with_noise))
 
-    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
+    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.zeros(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
     print("Output", len(output), "Message(noise)", len(message_with_noise))
 
 
