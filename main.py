@@ -203,7 +203,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodin
     G_HEIGHT, G_WIDTH = G.shape
     
     M = G_WIDTH-1
-    L = 9 * M
+    L = 10 * M
     
     if(decodingType == 'soft'):
         encoded = patchPunctures(encodedWithNoiseAndPunctures, puncturePattern.copy())
@@ -285,12 +285,15 @@ def encodeHuffman(huffmantable, toEncode):
                 pass
     return "".join(str(x) for x in result)
 
+def codeRateFromPuncturePattern(puncPattern):
+    return len(puncPattern[0]) / np.sum(puncPattern) 
+
 def main():
     img = iio.imread("rsc/I52.png")
     height, width = img.shape[:2]
     qf = .5
     img_jpeg, compressed = jpeg_compression_cycle(img, qf)
-    ratioInDB = 5
+    ratioInDB = 6
     decodingType = 'soft'
 
     #decompressed = decode_jpeg(compressed[0], compressed[1], compressed[2], .1)
@@ -331,7 +334,7 @@ def main():
         for __ in range(G_HEIGHT):
             encoded = np.delete(encoded, 0)
 
-    ratioInDB = 16.2
+    ratioInDB = 6
     if(decodingType == 'soft'):
         encodedWithPunctures = puncture(encoded, puncturePattern.copy())
     else:
@@ -344,6 +347,7 @@ def main():
     print(len(message), len(message_with_noise))
 
     output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
+    output = output[:int(len(encodedWithNoiseAndPunctures)*codeRateFromPuncturePattern(puncturePattern))]
     print("Output", len(output), "Message(noise)", len(message_with_noise))
 
 
@@ -354,7 +358,7 @@ def main():
     #print(f'Message: ------------------- {np.array(message, dtype=int)}')
     #print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
     #print(f'Decoded using channelcoding: {decodedUsingPackage}')
-    print("Decoded message correct?:", message[0:len(output)] == output)
+    print("Decoded message correct?:", message == output)
     #print("Decoded same as channelcoding?:",(decodedUsingPackage[0:len(output)] == output).all())
     #print("Channel coding correct?:", (decodedUsingPackage == message).all())
 
@@ -363,7 +367,7 @@ def main():
     print(len(decompressed_combined), len(combined))
     decompressed_luminence_flat = decompressed_combined[:width*height]
     decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
-    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
+    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)+1]
     decompressed_luminence = np.zeros((height, width))
     decompressed_cb = np.zeros((height//2, width//2))
     decompressed_cr = np.zeros((height//2, width//2))
@@ -379,11 +383,10 @@ def main():
 
 
     decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in message_with_noise))
-    
+    print(len(decompressed_combined))
     decompressed_luminence_flat = decompressed_combined[:width*height]
     decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
-    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
-    print("Lengths:", len(decompressed_combined), len(decompressed_luminence_flat), len(decompressed_cb_flat), len(decompressed_cr_flat),len(decompressed_luminence_flat) + len(decompressed_cb_flat) + len(decompressed_cr_flat))
+    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)+1]
     decompressed_luminence = np.zeros((height, width))
     decompressed_cb = np.zeros((height//2, width//2))
     decompressed_cr = np.zeros((height//2, width//2))
@@ -392,8 +395,8 @@ def main():
             decompressed_luminence[y][x] = decompressed_luminence_flat[width*y+x]
     for y in range(height//2):
         for x in range(width//2):
-            decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
-            #print(len(decompressed_cr_flat), (width//2)*y+x)
+            if (width//2)*y+x < len(decompressed_cb_flat):
+                decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
             if (width//2)*y+x < len(decompressed_cr_flat):
                 decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
 
