@@ -287,54 +287,73 @@ def encodeHuffman(huffmantable, toEncode):
 
 def main():
     # Test 0: Soft, window, puncturing, 1.000 long message, simple generator, small amount of noise
-    qf = .5
-    ratioInDB = 5
+    ratioInDB = 1
     decodingType = 'soft'
 
     # Initiate generator
-    #G = np.array([[1, 1, 1, 1],
-    #            [1, 0, 1, 1],
-    #            [1, 1, 1, 0]])
-    G = np.array([[1,0,1],[1,1,1]])
-    #G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
-    puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
+    G0 = np.array([[1, 1, 1, 1],
+                [1, 0, 1, 1],
+                [1, 1, 1, 0]])
+    G1 = np.array([[1,0,1],[1,1,1]])
+    G2 = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
+    puncturePattern = np.array([[1, 1], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
 
-    message_length = 1000
-    message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
+    message_length = 100
+    G0_correct_counter = 0
+    G1_correct_counter = 0
+    G2_correct_counter = 0
 
-    G_HEIGHT, G_WIDTH = G.shape
-    M = G_WIDTH - 1
-    L = 10 * M
+    for i in range(1000):
+
+        message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
+
+        G_HEIGHT, G_WIDTH0 = G0.shape
+        M0 = G_WIDTH0 - 1
+        L0 = 10 * M0
+        G_HEIGHT, G_WIDTH1 = G1.shape
+        M1 = G_WIDTH1 - 1
+        L1 = 10 * M1
+        G_HEIGHT, G_WIDTH2 = G2.shape
+        M2 = G_WIDTH2 - 1
+        L2 = 10 * M2
+        
+        encoded0 = viterbiEncoder(message, G0)
+        encoded1 = viterbiEncoder(message, G1)
+        encoded2 = viterbiEncoder(message, G2)
+
+        ratioInDB = 0
+        encodedWithPunctures0 = puncture(encoded0, puncturePattern.copy())
+        encodedWithPunctures1 = puncture(encoded1, puncturePattern.copy())
+        encodedWithPunctures2 = puncture(encoded2, puncturePattern.copy())
+        
+        encodedWithNoiseAndPunctures0, noisePattern = addNoise(ratioInDB, (encodedWithPunctures0 - 0.5)*2)
+        encodedWithNoiseAndPunctures1 = (encodedWithPunctures1 - 0.5) * 2 + noisePattern[:len(encodedWithPunctures1)]
+        encodedWithNoiseAndPunctures2 = (encodedWithPunctures2 - 0.5) * 2 + noisePattern[:len(encodedWithPunctures2)]
+
+        #output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
+        output0 = viterbiDecode(G0, encodedWithNoiseAndPunctures0, puncturePattern, decodingType)
+        output1 = viterbiDecode(G1, encodedWithNoiseAndPunctures1, puncturePattern, decodingType)
+        output2 = viterbiDecode(G2, encodedWithNoiseAndPunctures2, puncturePattern, decodingType)
+
+        #print("Decoded message correct using G0?: ", message[0:len(output0)] == output0)
+        #print("Decoded message correct using G1?: ", message[0:len(output1)] == output1)
+        #print("Decoded message correct using G2?: ", message[0:len(output2)] == output2)
+
+        if(message[0:len(output0)] == output0):
+            G0_correct_counter += 1
+        if(message[0:len(output1)] == output1):
+            G1_correct_counter += 1
+        if(message[0:len(output2)] == output2):
+            G2_correct_counter += 1
+        
+        print("i: ", i, "/1000")
     
-    encoded = viterbiEncoder(message, G)
+    print("Correctly decoded using G0: ", G0_correct_counter)
+    print("Correctly decoded using G1: ", G1_correct_counter)
+    print("Correctly decoded using G2: ", G2_correct_counter)
 
-    ratioInDB = 3
-    if(decodingType == 'soft'):
-        encodedWithPunctures = puncture(encoded, puncturePattern.copy())
-    else:
-        encodedWithPunctures = encoded
-    
-    encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
 
-    #message_with_noise = ((message + noisePattern[:len(message)]) > 0.5) * 1
-    #print("Amount of noise:", np.sum(message_with_noise != message))
-    #print(len(message), len(message_with_noise))
 
-    #output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-    output = viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-    print("Output length: ", len(output))
-    print("Input length:  ", len(message))
-
-    ## Viterbi decoder from channelcoding:
-    #trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
-    #decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
-
-    #print(f'Message: ------------------- {np.array(message, dtype=int)}')
-    #print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
-    #print(f'Decoded using channelcoding: {decodedUsingPackage}')
-    print("Decoded message correct?: ", message[0:len(output)] == output)
-    #print("Decoded same as channelcoding?:",(decodedUsingPackage[0:len(output)] == output).all())
-    #print("Channel coding correct?:", (decodedUsingPackage == message).all())
 
 
 if __name__ == "__main__":
