@@ -287,24 +287,15 @@ def encodeHuffman(huffmantable, toEncode):
 
 def main():
     # Test 0: Soft, window, puncturing, 1.000 long message, simple generator, small amount of noise
-    qf = .5
     ratioInDB = 5
     decodingType = 'soft'
 
     # Initiate generator
-    #G = np.array([[1, 1, 1, 1],
-    #            [1, 0, 1, 1],
-    #            [1, 1, 1, 0]])
     G = np.array([[1,0,1],[1,1,1]])
-    #G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
     puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
 
     message_length = 1000
     message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
-
-    G_HEIGHT, G_WIDTH = G.shape
-    M = G_WIDTH - 1
-    L = 10 * M
     
     encoded = viterbiEncoder(message, G)
 
@@ -316,25 +307,11 @@ def main():
     
     encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
 
-    #message_with_noise = ((message + noisePattern[:len(message)]) > 0.5) * 1
-    #print("Amount of noise:", np.sum(message_with_noise != message))
-    #print(len(message), len(message_with_noise))
-
-    #output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-    output = viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern, decodingType) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
+    output = viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern, decodingType)
     print("Output length: ", len(output))
     print("Input length:  ", len(message))
 
-    ## Viterbi decoder from channelcoding:
-    #trellisUsingPackage = channelcoding.convcode.Trellis(np.array([M]),np.array(generatorMatrixToIntsReversed(G))) # has to be in the reverse order of how it's written in G
-    #decodedUsingPackage = channelcoding.convcode.viterbi_decode(encoded.copy(),trellisUsingPackage,tb_depth=None,decoding_type='soft')
-
-    #print(f'Message: ------------------- {np.array(message, dtype=int)}')
-    #print(f'Decoded using our decoder: - {np.array(output, dtype=int)}')
-    #print(f'Decoded using channelcoding: {decodedUsingPackage}')
     print("Decoded message correct?: ", message[0:len(output)] == output)
-    #print("Decoded same as channelcoding?:",(decodedUsingPackage[0:len(output)] == output).all())
-    #print("Channel coding correct?:", (decodedUsingPackage == message).all())
 
 
 if __name__ == "__main__":
