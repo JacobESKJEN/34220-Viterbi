@@ -142,7 +142,7 @@ def patchPunctures(puncturedMessage, puncturePattern):
 
     return np.array(output)
 
-def trellisViterbiDecode(trellis, encoded, G, start_column=1):
+def trellisViterbiDecode(trellis, encoded, G, start_column=1, decodingType='soft'):
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
 
@@ -157,8 +157,13 @@ def trellisViterbiDecode(trellis, encoded, G, start_column=1):
                 continue
             toDecode = encoded[column_index*G_HEIGHT:(column_index+1)*G_HEIGHT]
             
-            errors0 = findMetric(toDecode, node.out0)
-            errors1 = findMetric(toDecode, node.out1)
+            if(decodingType=='soft'):
+                errors0 = findMetric(toDecode, node.out0)
+                errors1 = findMetric(toDecode, node.out1)
+            else:
+                toDecode = (toDecode > 0) * 1
+                errors0 = np.sum((node.out0 + toDecode) % 2)
+                errors1 = np.sum((node.out1 + toDecode) % 2)
             
             if trellis[column_index+1][node.in0].minError > node.minError + errors0:
                 trellis[column_index+1][node.in0].minError = node.minError + errors0
@@ -193,16 +198,18 @@ def trellisViterbiDecode(trellis, encoded, G, start_column=1):
     output = output[::-1]
     return output, trellis
 
-def viterbiDecode(G, encodedWithNoiseAndPunctures):
+def viterbiDecode(G, encodedWithNoiseAndPunctures, puncturePattern=None, decodingType='soft'):
     G_HEIGHT, G_WIDTH = G.shape
-
-    puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
     
     M = G_WIDTH-1
     L = 9 * M
     
-    encoded = patchPunctures(encodedWithNoiseAndPunctures, puncturePattern.copy()) # Fixing punctures
-    print("Punctures fixed")
+    if(decodingType == 'soft'):
+        encoded = patchPunctures(encodedWithNoiseAndPunctures, puncturePattern.copy())
+        print("Punctures fixed")
+    else:
+        encoded = encodedWithNoiseAndPunctures # Does not contain punctures
+    
     # Initiate trellis
     trellis = [[Node(len(encoded)) for _ in range(2**M)] for _ in range(len(encoded)//G_HEIGHT + 1)]
     for column_index in range(len(trellis)-1):
@@ -247,7 +254,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures):
 
         part_of_encoded = encoded[i*L*G_HEIGHT:(i*L+2*L)*G_HEIGHT]
         
-        output, updated_trellis = trellisViterbiDecode(window_trellis, part_of_encoded, G, start_column=start_column_index-1)
+        output, updated_trellis = trellisViterbiDecode(window_trellis, part_of_encoded, G, start_column=start_column_index-1, decodingType=decodingType)
         trellis[i*L:i*L+2*L] = updated_trellis
         
         decoded += output[0:L]
@@ -282,6 +289,8 @@ def main():
     height, width = img.shape[:2]
     qf = .5
     img_jpeg, compressed = jpeg_compression_cycle(img, qf)
+    ratioInDB = 5
+    decodingType = 'soft'
 
     #decompressed = decode_jpeg(compressed[0], compressed[1], compressed[2], .1)
     #print(compressed)
@@ -302,6 +311,8 @@ def main():
     #            [1, 1, 1, 0]])
     G = np.array([[1,0,1],[1,1,1]])
     #G = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
+    puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
+
     #message_length = 1000
     #message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
     message = [int(x) for x in huffman_coded]
@@ -311,23 +322,24 @@ def main():
     M = G_WIDTH - 1
     L = 9 * M
 
-    puncturePattern = np.array([[1, 0], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
     
     encoded = viterbiEncoder(message, G)
-    chars_to_remove = 0 # Remove 4 first characters
-    for _ in range(chars_to_remove): # Remove 4 first characters
+    chars_to_remove = 0 # Remove 0 first characters
+    for _ in range(chars_to_remove): # Remove 0 first characters
         message.pop(0)
         for __ in range(G_HEIGHT):
             encoded = np.delete(encoded, 0)
 
-    ratioInDB = 10
-    encodedWithPunctures = puncture(encoded, puncturePattern.copy())
+    if(decodingType == 'soft'):
+        encodedWithPunctures = puncture(encoded, puncturePattern.copy())
+    else:
+        encodedWithPunctures = encoded
+        
     encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
 
     message_with_noise = np.round(message + noisePattern[:len(message)]) % 2
 
-    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L))) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-
+    output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L)), puncturePattern, decodingType) # Smider L 1'er på enden, så man laver viterbidekodning af hele billedet
 
 
     ## Viterbi decoder from channelcoding:
