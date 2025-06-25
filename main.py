@@ -142,7 +142,7 @@ def patchPunctures(puncturedMessage, puncturePattern):
 
     return np.array(output)
 
-def trellisViterbiDecode(trellis, encoded, G, start_column=1):
+def viterbiSearchAndBacktrack(trellis, encoded, G, start_column=1):
     G_HEIGHT, G_WIDTH = G.shape
     M = G_WIDTH - 1
 
@@ -247,7 +247,7 @@ def viterbiDecode(G, encodedWithNoiseAndPunctures):
 
         part_of_encoded = encoded[i*L*G_HEIGHT:(i*L+2*L)*G_HEIGHT]
         
-        output, updated_trellis = trellisViterbiDecode(window_trellis, part_of_encoded, G, start_column=start_column_index-1)
+        output, updated_trellis = viterbiSearchAndBacktrack(window_trellis, part_of_encoded, G, start_column=start_column_index-1)
         trellis[i*L:i*L+2*L] = updated_trellis
         
         decoded += output[0:L]
@@ -325,9 +325,10 @@ def main():
     encodedWithNoiseAndPunctures, noisePattern = addNoise(ratioInDB, (encodedWithPunctures - 0.5)*2)
 
     message_with_noise = np.round(message + noisePattern[:len(message)]) % 2
+    print(len(message), len(message_with_noise))
 
     output = viterbiDecode(G, np.append(encodedWithNoiseAndPunctures, np.ones(3*L))) # Smider L 0'er på enden, så man laver viterbidekodning af hele billedet
-
+    print("Output", len(output), "Message(noise)", len(message_with_noise))
 
 
     ## Viterbi decoder from channelcoding:
@@ -341,30 +342,12 @@ def main():
     #print("Decoded same as channelcoding?:",(decodedUsingPackage[0:len(output)] == output).all())
     #print("Channel coding correct?:", (decodedUsingPackage == message).all())
 
-    """ decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in message_with_noise))
-    
-    decompressed_luminence_flat = decompressed_combined[:width*height]
-    decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
-    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
-    decompressed_luminence = np.zeros((height, width))
-    decompressed_cb = np.zeros((height//2, width//2))
-    decompressed_cr = np.zeros((height//2, width//2))
-    for y in range(height):
-        for x in range(width):
-            decompressed_luminence[y][x] = decompressed_luminence_flat[width*y+x]
-    for y in range(height//2):
-        for x in range(width//2):
-            decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
-            decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
-    
-    decompressed_no_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf) """
-
     decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in output))
     print(decompressed_combined[:25], combined[:25])
     print(len(decompressed_combined), len(combined))
     decompressed_luminence_flat = decompressed_combined[:width*height]
     decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
-    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)]
+    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)+1]
     decompressed_luminence = np.zeros((height, width))
     decompressed_cb = np.zeros((height//2, width//2))
     decompressed_cr = np.zeros((height//2, width//2))
@@ -379,10 +362,31 @@ def main():
     decompressed_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
 
 
-    fig, ax = plt.subplots(nrows=1, ncols=2)
+    decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in message_with_noise))
+    
+    decompressed_luminence_flat = decompressed_combined[:width*height]
+    decompressed_cb_flat = decompressed_combined[width*height: int(5/4 * width*height)]
+    decompressed_cr_flat = decompressed_combined[int(5/4 *width*height): int(6/4 * width*height)+1]
+    print("Lengths:", len(decompressed_combined), len(decompressed_luminence_flat), len(decompressed_cb_flat), len(decompressed_cr_flat),len(decompressed_luminence_flat) + len(decompressed_cb_flat) + len(decompressed_cr_flat))
+    decompressed_luminence = np.zeros((height, width))
+    decompressed_cb = np.zeros((height//2, width//2))
+    decompressed_cr = np.zeros((height//2, width//2))
+    for y in range(height):
+        for x in range(width):
+            decompressed_luminence[y][x] = decompressed_luminence_flat[width*y+x]
+    for y in range(height//2):
+        for x in range(width//2):
+            decompressed_cb[y][x] = decompressed_cb_flat[(width//2)*y+x] 
+            #print(len(decompressed_cr_flat), (width//2)*y+x)
+            decompressed_cr[y][x] = decompressed_cr_flat[(width//2)*y+x] 
+
+    decompressed_no_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
+
+
+    fig, ax = plt.subplots(nrows=1, ncols=3)
     ax[0].imshow(img)
-    #ax[1].imshow(decompressed_no_conv_code)
-    ax[1].imshow(decompressed_conv_code)
+    ax[1].imshow(decompressed_no_conv_code)
+    ax[2].imshow(decompressed_conv_code)
     plt.show(block=True)
 
 
