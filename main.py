@@ -288,6 +288,7 @@ def encodeHuffman(huffmantable, toEncode):
 def main():
     # Test 1: Soft, window, no puncturing, 1.000 long message, variable noise, find best generator
     decodingType = 'soft'
+    np.set_printoptions(precision=10, suppress=False)
 
     # Initiate generators
     G0 = np.array([[1, 1, 1, 1],
@@ -295,103 +296,106 @@ def main():
                 [1, 1, 1, 0]])
     G1 = np.array([[1,0,1],[1,1,1]])
     G2 = np.array([[1,1,1,1,0,0,1],[1,0,1,1,0,1,1]])
+    G_HEIGHT0, G_WIDTH0 = G0.shape
+    G_HEIGHT1, G_WIDTH0 = G1.shape
+    G_HEIGHT2, G_WIDTH0 = G2.shape
     puncturePattern = np.array([[1, 1], [1, 1]]) # NOTE: Breaks if it does not have the same "height" as G
-    ratioInDB0 = 2
-    ratioInDB1 = 2
-    ratioInDB2 = 2
 
-    message_length = 500
+    message_length = 1000
 
-    barrierFound0 = False
-    barrierFound1 = False
-    barrierFound2 = False
-    ratioBarrier0 = 0
-    ratioBarrier1 = 0
-    ratioBarrier2 = 0
+    errorRate0 = np.array([], dtype=np.float64)
+    errorRate1 = np.array([], dtype=np.float64)
+    errorRate2 = np.array([], dtype=np.float64)
+    snr0 = np.array([])
+    snr1 = np.array([])
+    snr2 = np.array([])
 
     repetitions = 100
 
-    while(not barrierFound0):
-        G0_correct_counter = 0
+    ratioInDB = -4.3 # Starts at a different ratio to account for noise/information bit
+    for _ in range(16):
+        errorCount = 0
+        outputLen = 0
 
-        for i in range(repetitions):
+        for _ in range(repetitions):
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
-
-            G_HEIGHT, G_WIDTH0 = G0.shape
             
             encoded0 = viterbiEncoder(message, G0)
-
             encodedWithPunctures0 = puncture(encoded0, puncturePattern.copy())
-            
-            encodedWithNoiseAndPunctures0, noisePattern = addNoise(ratioInDB0, (encodedWithPunctures0 - 0.5)*2)
-
+            encodedWithNoiseAndPunctures0, noisePattern = addNoise(ratioInDB, (encodedWithPunctures0 - 0.5)*2)
             output0 = viterbiDecode(G0, encodedWithNoiseAndPunctures0, puncturePattern, decodingType)
-
-            if(message[0:len(output0)] == output0):
-                G0_correct_counter += 1
+            
+            errorCount += np.sum((np.array(message[0:len(output0)]) + np.array(output0)) % 2)
+            outputLen = len(output0)
         
-        if(G0_correct_counter <= repetitions//2 and barrierFound0 == False):
-            ratioBarrier0 = 10*np.log10((10**(ratioInDB0/10))/(1/G_HEIGHT))
-            barrierFound0 = True
+        snr0 = np.append(snr0, 10*np.log10((10**(ratioInDB/10))/(1/G_HEIGHT0)))
+        errorRate0 = np.append(errorRate0, (errorCount)/(outputLen*repetitions))
         
-        print("ratioInDB0: ", ratioInDB0)
-        ratioInDB0 += -0.5
+        print("ratioInDB0: ", ratioInDB)
+        ratioInDB += -0.5
     
-    while(not barrierFound1):
-        G1_correct_counter = 0
+    ratioInDB = -2.5
+    for _ in range(16):
+        errorCount = 0
+        outputLen = 0
 
-        for i in range(repetitions):
+        for _ in range(repetitions):
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
-
-            G_HEIGHT, G_WIDTH1 = G1.shape
             
             encoded1 = viterbiEncoder(message, G1)
-
             encodedWithPunctures1 = puncture(encoded1, puncturePattern.copy())
-            
-            encodedWithNoiseAndPunctures1, noisePattern = addNoise(ratioInDB1, (encodedWithPunctures1 - 0.5)*2)
-
+            encodedWithNoiseAndPunctures1, noisePattern = addNoise(ratioInDB, (encodedWithPunctures1 - 0.5)*2)
             output1 = viterbiDecode(G1, encodedWithNoiseAndPunctures1, puncturePattern, decodingType)
-
-            if(message[0:len(output1)] == output1):
-                G1_correct_counter += 1
+            
+            errorCount += np.sum((np.array(message[0:len(output1)]) + np.array(output1)) % 2)
+            outputLen = len(output1)
         
-        if(G1_correct_counter <= repetitions//2 and barrierFound1 == False):
-            ratioBarrier1 = 10*np.log10((10**(ratioInDB1/10))/(1/G_HEIGHT))
-            barrierFound1 = True
+        snr1 = np.append(snr1, 10*np.log10((10**(ratioInDB/10))/(1/G_HEIGHT1)))
+        errorRate1 = np.append(errorRate1, (errorCount)/(outputLen*repetitions))
         
-        print("ratioInDB1: ", ratioInDB1)
-        ratioInDB1 += -0.5
+        print("ratioInDB1: ", ratioInDB)
+        ratioInDB += -0.5
     
-    while(not barrierFound2):
-        G2_correct_counter = 0
+    ratioInDB = -2.5
+    for _ in range(16):
+        errorCount = 0
+        outputLen = 0
 
-        for i in range(repetitions):
+        for _ in range(repetitions):
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
-
-            G_HEIGHT, G_WIDTH2 = G2.shape
             
             encoded2 = viterbiEncoder(message, G2)
-
             encodedWithPunctures2 = puncture(encoded2, puncturePattern.copy())
-            
-            encodedWithNoiseAndPunctures2, noisePattern = addNoise(ratioInDB2, (encodedWithPunctures2 - 0.5)*2)
-
+            encodedWithNoiseAndPunctures2, noisePattern = addNoise(ratioInDB, (encodedWithPunctures2 - 0.5)*2)
             output2 = viterbiDecode(G2, encodedWithNoiseAndPunctures2, puncturePattern, decodingType)
-
-            if(message[0:len(output2)] == output2):
-                G2_correct_counter += 1
+            
+            errorCount += np.sum((np.array(message[0:len(output2)]) + np.array(output2)) % 2)
+            outputLen = len(output2)
         
-        if(G2_correct_counter <= repetitions//2 and barrierFound2 == False):
-            ratioBarrier2 = 10*np.log10((10**(ratioInDB2/10))/(1/G_HEIGHT))
-            barrierFound2 = True
+        snr2 = np.append(snr2, 10*np.log10((10**(ratioInDB/10))/(1/G_HEIGHT2)))
+        errorRate2 = np.append(errorRate2, (errorCount)/(outputLen*repetitions))
         
-        print("ratioInDB2: ", ratioInDB2)
-        ratioInDB2 += -0.5
+        print("ratioInDB2: ", ratioInDB)
+        ratioInDB += -0.5
+    
+    print("errorRate0: ", errorRate0)
+    print("errorRate1: ", errorRate1)
+    print("errorRate2: ", errorRate2)
 
-    print("ratioBarrier0: ", ratioBarrier0)
-    print("ratioBarrier1: ", ratioBarrier1)
-    print("ratioBarrier2: ", ratioBarrier2)
+    plt.figure(figsize=(8,5))
+    plt.plot(snr0, errorRate0, label='G0', marker='o')
+    plt.plot(snr1, errorRate1, label='G1', marker='s')
+    plt.plot(snr2, errorRate2, label='G2', marker='^')
+
+    plt.yscale('log')
+    plt.xlabel('E_b/N_0 [dB]')
+    plt.ylabel('Bitfejlsrate')
+    plt.title('Bitfejlsrate af forskellige generatorer under forskellige signal-støjforhold')
+    plt.legend()
+    plt.autoscale(enable=True, axis='both', tight=False)
+    plt.grid(True)
+
+    plt.show()
 
 if __name__ == "__main__":
     main()
