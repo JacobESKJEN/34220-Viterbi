@@ -300,7 +300,7 @@ def main():
     ratioInDB1 = 2
     ratioInDB2 = 2
 
-    message_length = 1000
+    message_length = 500
 
     barrierFound0 = False
     barrierFound1 = False
@@ -309,10 +309,12 @@ def main():
     ratioBarrier1 = 0
     ratioBarrier2 = 0
 
+    repetitions = 100
+
     while(not barrierFound0):
         G0_correct_counter = 0
 
-        for i in range(10):
+        for i in range(repetitions):
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
 
             G_HEIGHT, G_WIDTH0 = G0.shape
@@ -328,8 +330,8 @@ def main():
             if(message[0:len(output0)] == output0):
                 G0_correct_counter += 1
         
-        if(G0_correct_counter <= 5 and barrierFound0 == False):
-            ratioBarrier0 = 20*np.log10((10**(ratioInDB0/10))/(1/G_HEIGHT))
+        if(G0_correct_counter <= repetitions//2 and barrierFound0 == False):
+            ratioBarrier0 = 10*np.log10((10**(ratioInDB0/10))/(1/G_HEIGHT))
             barrierFound0 = True
         
         print("ratioInDB0: ", ratioInDB0)
@@ -338,7 +340,7 @@ def main():
     while(not barrierFound1):
         G1_correct_counter = 0
 
-        for i in range(10):
+        for i in range(repetitions):
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
 
             G_HEIGHT, G_WIDTH1 = G1.shape
@@ -354,8 +356,8 @@ def main():
             if(message[0:len(output1)] == output1):
                 G1_correct_counter += 1
         
-        if(G1_correct_counter <= 5 and barrierFound1 == False):
-            ratioBarrier1 = 20*np.log10((10**(ratioInDB1/10))/(1/G_HEIGHT))
+        if(G1_correct_counter <= repetitions//2 and barrierFound1 == False):
+            ratioBarrier1 = 10*np.log10((10**(ratioInDB1/10))/(1/G_HEIGHT))
             barrierFound1 = True
         
         print("ratioInDB1: ", ratioInDB1)
@@ -364,7 +366,7 @@ def main():
     while(not barrierFound2):
         G2_correct_counter = 0
 
-        for i in range(10):
+        for i in range(repetitions):
             message = [np.random.randint(0, 2, dtype=int) for _ in range(message_length)]
 
             G_HEIGHT, G_WIDTH2 = G2.shape
@@ -380,8 +382,8 @@ def main():
             if(message[0:len(output2)] == output2):
                 G2_correct_counter += 1
         
-        if(G2_correct_counter <= 5 and barrierFound2 == False):
-            ratioBarrier2 = 20*np.log10((10**(ratioInDB2/10))/(1/G_HEIGHT))
+        if(G2_correct_counter <= repetitions//2 and barrierFound2 == False):
+            ratioBarrier2 = 10*np.log10((10**(ratioInDB2/10))/(1/G_HEIGHT))
             barrierFound2 = True
         
         print("ratioInDB2: ", ratioInDB2)
