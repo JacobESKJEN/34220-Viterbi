@@ -288,12 +288,30 @@ def encodeHuffman(huffmantable, toEncode):
 def codeRateFromPuncturePattern(puncPattern):
     return len(puncPattern[0]) / np.sum(puncPattern) 
 
+def Entropy(im): # fra skeleton
+    histogram, bin_edges = np.histogram(im, bins=range(257))
+    p = histogram / np.sum(histogram)
+    p1 = p[p!=0]
+    entropy = -np.dot(p1.T,np.log2(p1))
+    return entropy
+
+def MSE(im1,im2): # fra skeleton
+    return np.mean((im1-im2)**2)
+
+def PSNR(im1,im2): # fra skeleton
+    mse = MSE(im1,im2)
+    if mse == 0:
+        return float('inf')
+    max_pixel = 2**8-1
+    psnr = 20 * np.log10(max_pixel / np.sqrt(mse))
+    return psnr
+
 def main():
     img = iio.imread("rsc/I52.png")
     height, width = img.shape[:2]
     qf = .5
     img_jpeg, compressed = jpeg_compression_cycle(img, qf)
-    ratioInDB = 6
+    ratioInDB = 16.2
     decodingType = 'soft'
 
     #decompressed = decode_jpeg(compressed[0], compressed[1], compressed[2], .1)
@@ -334,7 +352,6 @@ def main():
         for __ in range(G_HEIGHT):
             encoded = np.delete(encoded, 0)
 
-    ratioInDB = 6
     if(decodingType == 'soft'):
         encodedWithPunctures = puncture(encoded, puncturePattern.copy())
     else:
@@ -381,7 +398,6 @@ def main():
     
     decompressed_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
 
-
     decompressed_combined = decodehuff(huffmantree, "".join(str(x) for x in message_with_noise))
     print(len(decompressed_combined))
     decompressed_luminence_flat = decompressed_combined[:width*height]
@@ -402,6 +418,8 @@ def main():
 
     decompressed_no_conv_code = decode_jpeg(decompressed_luminence, decompressed_cb, decompressed_cr, qf)
 
+    print("PSNR:", PSNR(img, decompressed_conv_code))
+    print("PSNR2:", PSNR(img, img_jpeg))
 
     fig, ax = plt.subplots(nrows=1, ncols=3)
     ax[0].imshow(img_jpeg)
